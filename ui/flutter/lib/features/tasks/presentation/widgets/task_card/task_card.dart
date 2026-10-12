@@ -6,6 +6,8 @@ import '../task_context_menu.dart';
 import 'task_card_desktop.dart';
 import 'task_card_mobile.dart';
 
+export 'task_card_desktop.dart' show TaskListHeader;
+
 class TaskCard extends StatelessWidget {
   const TaskCard({
     super.key,

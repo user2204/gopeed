@@ -46,23 +46,27 @@ class TaskUpdateListeningIndicator extends StatelessWidget {
 }
 
 class TaskCardIcon extends StatelessWidget {
-  const TaskCardIcon({super.key, required this.task});
+  const TaskCardIcon({super.key, required this.task, this.size = 32, this.iconSize = 20});
 
   final TaskRecord task;
+  final double size;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
 
     return SizedBox(
-      width: 32,
-      height: 32,
+      width: size,
+      height: size,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppDesignTokens.controlRadius),
         clipBehavior: Clip.hardEdge,
         child: ColoredBox(
           color: palette.taskCardIconBg,
-          child: Center(child: Icon(task.icon, size: 20, color: palette.textSecondary)),
+          child: Center(
+            child: Icon(task.icon, size: iconSize, color: palette.textSecondary),
+          ),
         ),
       ),
     );

@@ -4,9 +4,11 @@ import 'package:flutter/widgets.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 import '../../../../../core/window/app_window_chrome.dart';
+import '../../../../../l10n/l10n.dart';
 import '../../../../../shared/theme/app_design_tokens.dart';
 import '../../../../../shared/theme/app_palette.dart';
 import '../../../domain/task_record.dart';
+import '../../task_record_localizations.dart';
 import '../task_progress_bar.dart';
 import 'task_card_parts.dart';
 
@@ -75,172 +77,187 @@ class _TaskCardDesktopState extends State<TaskCardDesktop> {
     final task = widget.task;
     final isDark = shad.Theme.of(context).brightness == Brightness.dark;
     final isError = task.status == TaskStatus.failed;
-    final borderColor = isDark ? palette.border : palette.border.withValues(alpha: 0.6);
-    final baseColor = isDark ? palette.cardBg : palette.cardBg.withValues(alpha: 0.92);
-    final hoverColor = palette.taskCardHoverBg;
-    final radius = BorderRadius.circular(AppDesignTokens.controlRadius);
+    final l10n = context.l10n;
+    final showHover = _hovered && !widget.selected;
+    final rowColor = widget.selected
+        ? palette.itemActiveBg
+        : showHover
+        ? palette.taskCardHoverBg
+        : Colors.transparent;
+    final fillColor = taskCardFillColor(palette, task.status, isDark);
+    final metaStyle = TextStyle(color: palette.taskMeta, fontSize: 11.5, height: 1, fontFeatures: _tabular);
+    final textStyle = TextStyle(color: palette.textPrimary, fontSize: 12.5, height: 1, fontFeatures: _tabular);
+
+    final etaText = switch (task.status) {
+      TaskStatus.downloading || TaskStatus.paused => task.localizedRemaining(l10n) ?? '—',
+      TaskStatus.completed => l10n.completed,
+      TaskStatus.failed => l10n.failed,
+    };
+    final sizeText = switch (task.status) {
+      TaskStatus.completed => task.total ?? task.downloaded,
+      _ when task.total != null => '${task.downloaded} / ${task.total}',
+      _ when task.downloadedBytes == 0 => l10n.unknownSize,
+      _ => task.downloaded,
+    };
+    final progress = task.status == TaskStatus.completed ? 1.0 : task.progress;
+    final pctText = progress == null ? '—' : '${(progress * 100).floor()}%';
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTapUp: _handleTap,
-        child: Container(
-          height: AppDesignTokens.taskRowHeight,
+        child: DecoratedBox(
+          key: const ValueKey('task-card-row'),
           decoration: BoxDecoration(
-            borderRadius: radius,
-            boxShadow: widget.selected
-                ? [BoxShadow(color: palette.taskCardSelectedBorder, blurRadius: 0, spreadRadius: 1)]
-                : null,
+            border: Border(bottom: BorderSide(color: palette.border.withValues(alpha: 0.5))),
           ),
-          child: ClipRRect(
-            borderRadius: radius,
-            clipBehavior: Clip.hardEdge,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ColoredBox(color: baseColor),
-                if (_hovered)
-                  IgnorePointer(
-                    child: ColoredBox(key: const ValueKey('task-card-hover-surface'), color: hoverColor),
-                  ),
-                IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: radius,
-                      border: Border.all(color: _hovered ? palette.border : borderColor),
+          child: ColoredBox(
+            key: showHover ? const ValueKey('task-card-hover-surface') : null,
+            color: rowColor,
+            child: SizedBox(
+              height: AppDesignTokens.taskRowHeight,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      width: widget.batchMode ? 32 : 0,
+                      child: widget.batchMode
+                          ? Align(
+                              alignment: Alignment.centerLeft,
+                              child: shad.Checkbox(
+                                state: widget.selectedInBatch
+                                    ? shad.CheckboxState.checked
+                                    : shad.CheckboxState.unchecked,
+                                onChanged: (_) => widget.onToggleBatch(),
+                                borderColor: palette.border,
+                                backgroundColor: palette.cardBg,
+                                size: 16,
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
-                  child: Row(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        width: widget.batchMode ? 36 : 0,
-                        child: widget.batchMode
-                            ? Align(
-                                alignment: Alignment.centerLeft,
-                                child: shad.Checkbox(
-                                  state: widget.selectedInBatch
-                                      ? shad.CheckboxState.checked
-                                      : shad.CheckboxState.unchecked,
-                                  onChanged: (_) => widget.onToggleBatch(),
-                                  borderColor: palette.border,
-                                  backgroundColor: palette.cardBg,
-                                  size: 20,
-                                ),
-                              )
-                            : const SizedBox.shrink(),
+                    TaskCardIcon(task: task, size: 22, iconSize: 14),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              task.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textStyle.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: isError ? palette.error : palette.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (widget.listeningForUpdate) ...[
+                            const SizedBox(width: 8),
+                            const TaskUpdateListeningIndicator(),
+                          ],
+                        ],
                       ),
-                      TaskCardIcon(task: task),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: SizedBox(
-                          height: 46,
-                          child: task.status == TaskStatus.completed
-                              ? _CompletedContent(
-                                  task: task,
-                                  isDark: isDark,
-                                  onReveal: widget.onReveal,
-                                  onDelete: widget.onDelete,
-                                  listeningForUpdate: widget.listeningForUpdate,
-                                )
-                              : _ProgressContent(
-                                  task: task,
-                                  isError: isError,
-                                  isDark: isDark,
-                                  onPause: widget.onPause,
-                                  onResume: widget.onResume,
-                                  onDelete: widget.onDelete,
-                                  listeningForUpdate: widget.listeningForUpdate,
-                                ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: TaskListColumns.progress,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TaskProgressBar(
+                              value: progress,
+                              indeterminate: task.isIndeterminate,
+                              trackColor: palette.brandTrack,
+                              fillColor: fillColor,
+                              highlightStartColor: fillColor,
+                              highlightEndColor: fillColor,
+                              shimmer: task.status == TaskStatus.downloading && !task.waiting,
+                              height: 4,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 30,
+                            child: Text(pctText, textAlign: TextAlign.right, style: metaStyle),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: TaskListColumns.size,
+                      child: Text(
+                        sizeText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: metaStyle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: TaskListColumns.speed,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (task.uploading) ...[
+                                _SpeedValue(icon: Icons.north, value: task.uploadSpeed!, style: textStyle),
+                                const SizedBox(width: 6),
+                              ],
+                              if (task.speed != null)
+                                _SpeedValue(icon: Icons.south, value: task.speed!, style: textStyle),
+                            ],
+                          ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: TaskListColumns.eta,
+                      child: Text(
+                        etaText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: isError ? metaStyle.copyWith(color: palette.error) : metaStyle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: TaskListColumns.actions,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: _buildActionButtons(task, palette, isDark),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
-}
-
-class _ProgressContent extends StatelessWidget {
-  const _ProgressContent({
-    required this.task,
-    required this.isError,
-    required this.isDark,
-    this.onPause,
-    this.onResume,
-    this.onDelete,
-    required this.listeningForUpdate,
-  });
-
-  final TaskRecord task;
-  final bool isError;
-  final bool isDark;
-  final VoidCallback? onPause;
-  final VoidCallback? onResume;
-  final VoidCallback? onDelete;
-  final bool listeningForUpdate;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final fillColor = taskCardFillColor(palette, task.status, isDark);
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: 21,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Text(
-                  task.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w500, height: 1),
-                ),
-              ),
-              const SizedBox(width: 16),
-              if (listeningForUpdate) ...[const TaskUpdateListeningIndicator(), const SizedBox(width: 8)],
-              Row(mainAxisSize: MainAxisSize.min, children: _buildActionButtons(task, palette, isDark)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        TaskProgressBar(
-          value: task.progress,
-          indeterminate: task.isIndeterminate,
-          trackColor: palette.brandTrack,
-          fillColor: fillColor,
-          highlightStartColor: fillColor,
-          highlightEndColor: fillColor,
-          shimmer: task.status == TaskStatus.downloading && !task.waiting,
-        ),
-        const SizedBox(height: 6),
-        TaskCardFooter(task: task, isError: isError),
-      ],
-    );
-  }
 
   List<Widget> _buildActionButtons(TaskRecord task, AppPalette palette, bool isDark) {
     final actions = switch (task.status) {
-      TaskStatus.downloading => [(Icons.pause, onPause), (Icons.close, onDelete)],
-      TaskStatus.paused => [(Icons.play_arrow, onResume), (Icons.close, onDelete)],
-      TaskStatus.failed => [(Icons.refresh, onResume), (Icons.delete_outline, onDelete)],
+      TaskStatus.downloading => [(Icons.pause, widget.onPause), (Icons.close, widget.onDelete)],
+      TaskStatus.paused => [(Icons.play_arrow, widget.onResume), (Icons.close, widget.onDelete)],
+      TaskStatus.failed => [(Icons.refresh, widget.onResume), (Icons.delete_outline, widget.onDelete)],
       TaskStatus.completed => [
-        if (AppWindowChrome.isDesktopWindow) (Icons.folder_open_outlined, null),
-        (Icons.delete_outline, onDelete),
+        if (AppWindowChrome.isDesktopWindow) (Icons.folder_open_outlined, widget.onReveal),
+        (Icons.delete_outline, widget.onDelete),
       ],
     };
 
@@ -250,81 +267,88 @@ class _ProgressContent extends StatelessWidget {
             icon: action.$1,
             color: palette.taskCardAction,
             onPressed: action.$2 ?? () {},
-            hoverBackground: isDark ? palette.border : Colors.transparent,
+            hoverBackground: isDark ? palette.border : palette.cardHoverBg,
+            buttonSize: 22,
+            iconSize: 14,
           ),
         )
         .toList(growable: false);
   }
 }
 
-class _CompletedContent extends StatelessWidget {
-  const _CompletedContent({
-    required this.task,
-    required this.isDark,
-    required this.listeningForUpdate,
-    this.onReveal,
-    this.onDelete,
-  });
+const _tabular = [FontFeature.tabularFigures()];
 
-  final TaskRecord task;
-  final bool isDark;
-  final VoidCallback? onReveal;
-  final VoidCallback? onDelete;
-  final bool listeningForUpdate;
+/// Fixed column widths shared by the task list header and the rows.
+abstract final class TaskListColumns {
+  static const double progress = 150;
+  static const double size = 132;
+  static const double speed = 96;
+  static const double eta = 84;
+  static const double actions = 52;
+}
+
+/// Column titles matching [TaskCardDesktop] rows (compact table layout).
+class TaskListHeader extends StatelessWidget {
+  const TaskListHeader({super.key, this.leading = 0});
+
+  /// Extra leading space reserved for the batch-selection checkbox column.
+  final double leading;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final l10n = context.l10n;
+    final style = TextStyle(color: palette.textMuted, fontSize: 11, height: 1);
+    Widget cell(String text, double width, {TextAlign align = TextAlign.right}) => SizedBox(
+      width: width,
+      child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: align, style: style),
+    );
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: 21,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Text(
-                  task.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w500, height: 1),
-                ),
-              ),
-              const SizedBox(width: 16),
-              if (listeningForUpdate) ...[const TaskUpdateListeningIndicator(), const SizedBox(width: 8)],
-              Row(mainAxisSize: MainAxisSize.min, children: _buildActionButtons(task, palette, isDark)),
-            ],
+    return Container(
+      key: const ValueKey('task-list-header'),
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: palette.border)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(width: leading + 22 + 12),
+          Expanded(
+            child: Text(l10n.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
           ),
-        ),
-        const SizedBox(height: 6),
-        TaskCardCompletedMeta(task: task),
-      ],
+          const SizedBox(width: 12),
+          cell(l10n.progress, TaskListColumns.progress, align: TextAlign.left),
+          const SizedBox(width: 12),
+          cell(l10n.size, TaskListColumns.size),
+          const SizedBox(width: 12),
+          cell(l10n.speed, TaskListColumns.speed),
+          const SizedBox(width: 12),
+          cell(l10n.remaining, TaskListColumns.eta),
+          const SizedBox(width: 12),
+          const SizedBox(width: TaskListColumns.actions),
+        ],
+      ),
     );
   }
+}
 
-  List<Widget> _buildActionButtons(TaskRecord task, AppPalette palette, bool isDark) {
-    final actions = switch (task.status) {
-      TaskStatus.downloading => [(Icons.pause, null), (Icons.close, onDelete)],
-      TaskStatus.paused => [(Icons.play_arrow, null), (Icons.close, onDelete)],
-      TaskStatus.failed => [(Icons.refresh, null), (Icons.delete_outline, onDelete)],
-      TaskStatus.completed => [
-        if (AppWindowChrome.isDesktopWindow) (Icons.folder_open_outlined, onReveal),
-        (Icons.delete_outline, onDelete),
+class _SpeedValue extends StatelessWidget {
+  const _SpeedValue({required this.icon, required this.value, required this.style});
+
+  final IconData icon;
+  final String value;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 10, color: style.color),
+        const SizedBox(width: 2),
+        Text(value, maxLines: 1, style: style),
       ],
-    };
-
-    return actions
-        .map(
-          (action) => TaskCardActionButton(
-            icon: action.$1,
-            color: palette.taskCardAction,
-            onPressed: action.$2 ?? () {},
-            hoverBackground: isDark ? palette.border : Colors.transparent,
-          ),
-        )
-        .toList(growable: false);
+    );
   }
 }

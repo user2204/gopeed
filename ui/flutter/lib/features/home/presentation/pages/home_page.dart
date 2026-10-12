@@ -29,6 +29,7 @@ import '../../../tasks/presentation/widgets/task_card/task_card.dart';
 import '../../../tasks/presentation/widgets/task_drawer.dart';
 import '../../../tasks/presentation/widgets/task_context_menu.dart';
 import '../../../tasks/presentation/widgets/task_delete_dialog.dart';
+import '../../../tasks/presentation/widgets/task_details_panel.dart';
 import '../../../tasks/presentation/widgets/task_empty_state.dart';
 import '../../../tasks/presentation/widgets/task_create_button.dart';
 import '../../../tasks/presentation/widgets/task_file_browser_dialog.dart';
@@ -68,6 +69,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   final TextEditingController _searchController = TextEditingController();
   _TaskFilter _activeFilter = _TaskFilter.downloading;
   TaskRecord? _selectedTask;
+  TaskRecord? _panelTask;
   bool _batchMode = false;
   final TaskBatchSelectionController _batchSelection = TaskBatchSelectionController();
 
@@ -100,6 +102,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         ? context.l10n.emptyTaskList
         : context.l10n.noMatchingTasks;
     final selectedTask = _latestSelectedTask(tasks);
+    final panelTask = _latestPanelTask(tasks);
     final visibleTaskIds = filteredTasks.map((task) => task.id).toList(growable: false);
     final pendingUpdateTask = ref.watch(pendingUpdateTaskProvider);
     final navigationItems = _taskNavigationItems(tasks);
@@ -146,7 +149,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       child: Stack(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(32, AppDesignTokens.space8, 32, 0),
+                            padding: const EdgeInsets.only(top: AppDesignTokens.space8),
                             child: Column(
                               key: const ValueKey('tasks-content-start'),
                               children: [
@@ -168,6 +171,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                         )
                                       : const SizedBox.shrink(),
                                 ),
+                                if (filteredTasks.isNotEmpty) TaskListHeader(leading: _batchMode ? 32 : 0),
                                 Expanded(
                                   child: tasksAsync.when(
                                     loading: () => const Center(child: shad.CircularProgressIndicator()),
@@ -180,7 +184,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                         : ListView.separated(
                                             padding: const EdgeInsets.only(bottom: 16),
                                             itemCount: filteredTasks.length,
-                                            separatorBuilder: (_, _) => const SizedBox(height: 8),
+                                            separatorBuilder: (_, _) => const SizedBox.shrink(),
                                             itemBuilder: (context, index) {
                                               final task = filteredTasks[index];
                                               return TaskBatchSelectionBuilder(
@@ -189,7 +193,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                                 visibleTaskIds: visibleTaskIds,
                                                 builder: (context, selectedInBatch, allSelected) => TaskCard(
                                                   task: task,
-                                                  selected: _selectedTask?.id == task.id,
+                                                  selected: _panelTask?.id == task.id,
                                                   batchMode: _batchMode,
                                                   selectedInBatch: selectedInBatch,
                                                   onPressed: () => _handleTaskPressed(task),
@@ -215,6 +219,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                                           ),
                                   ),
                                 ),
+                                if (panelTask != null && !_batchMode)
+                                  TaskDetailsPanel(
+                                    task: panelTask,
+                                    onOpenDetails: () => setState(() => _selectedTask = panelTask),
+                                    onClose: () => setState(() => _panelTask = null),
+                                  ),
                               ],
                             ),
                           ),
@@ -319,6 +329,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     setState(() {
       _activeFilter = filter;
       _selectedTask = null;
+      _panelTask = null;
     });
   }
 
@@ -336,6 +347,15 @@ class _HomePageState extends ConsumerState<HomePage> {
           return passesFilter && passesSearch;
         })
         .toList(growable: false);
+  }
+
+  TaskRecord? _latestPanelTask(List<TaskRecord> tasks) {
+    final panelTask = _panelTask;
+    if (panelTask == null) return null;
+    for (final task in tasks) {
+      if (task.id == panelTask.id) return task;
+    }
+    return panelTask;
   }
 
   TaskRecord? _latestSelectedTask(List<TaskRecord> tasks) {
@@ -385,7 +405,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       context.push('/tasks/${Uri.encodeComponent(task.id)}', extra: task);
     } else {
       setState(() {
-        _selectedTask = task;
+        _panelTask = task;
       });
     }
   }
@@ -399,6 +419,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       _batchMode = enteringBatchMode;
       if (_batchMode) {
         _selectedTask = null;
+        _panelTask = null;
       }
     });
   }
@@ -417,6 +438,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       setState(() {
         _batchMode = true;
         _selectedTask = null;
+        _panelTask = null;
       });
     }
     _batchSelection.replaceWith(visibleIds);
@@ -466,6 +488,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           setState(() {
             _batchMode = true;
             _selectedTask = null;
+            _panelTask = null;
           });
         }
         _toggleBatchTask(task.id);
@@ -523,6 +546,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       _batchMode = false;
       if (_selectedTask != null && ids.contains(_selectedTask!.id)) {
         _selectedTask = null;
+        _panelTask = null;
       }
     });
   }

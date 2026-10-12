@@ -6,9 +6,9 @@ class AppDesignTokens {
   static const double windowHeaderHeight = 30;
   static const double windowRadius = 12;
   static const double railWidth = 68;
-  static const double filterSidebarWidth = 192;
-  static const double contentHeaderHeight = 48;
-  static const double taskRowHeight = 72;
+  static const double filterSidebarWidth = 172;
+  static const double contentHeaderHeight = 40;
+  static const double taskRowHeight = 32;
   static const double controlRadius = 4;
   static const double dialogActionMinWidth = 100;
   static const double checkboxSize = 18;

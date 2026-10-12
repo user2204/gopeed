@@ -44,7 +44,7 @@ class TasksTopBar extends StatelessWidget {
       child: Align(
         alignment: Alignment.center,
         child: Padding(
-          padding: const EdgeInsets.only(left: 32, right: 32),
+          padding: const EdgeInsets.only(left: 14, right: 14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -61,8 +61,8 @@ class TasksTopBar extends StatelessWidget {
               const SizedBox(width: 16),
               ConstrainedBox(
                 key: const ValueKey('tasks-create-button-container'),
-                constraints: const BoxConstraints(minWidth: 120, maxWidth: 190),
-                child: TaskCreateButton(onPressed: onAddTask),
+                constraints: const BoxConstraints(minWidth: 96, maxWidth: 160),
+                child: TaskCreateButton(onPressed: onAddTask, compact: true),
               ),
               const SizedBox(width: 16),
               Row(
@@ -110,10 +110,10 @@ class _SearchField extends StatelessWidget {
         border: Border.fromBorderSide(BorderSide(color: Colors.transparent, width: 0)),
       ),
       child: SizedBox(
-        height: 40,
+        height: 28,
         child: AppTextField(
           controller: controller,
-          style: TextStyle(color: palette.textPrimary, fontSize: 14, height: 1),
+          style: TextStyle(color: palette.textPrimary, fontSize: 12.5, height: 1),
           placeholder: Text(
             context.l10n.searchDownloads,
             style: TextStyle(color: palette.searchHint, fontSize: 14, height: 1),
@@ -140,8 +140,8 @@ class _ActionIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox.square(
-      dimension: 30,
-      child: shad.IconButton.outline(size: shad.ButtonSize.xSmall, onPressed: onPressed, icon: Icon(icon, size: 18)),
+      dimension: 26,
+      child: shad.IconButton.outline(size: shad.ButtonSize.xSmall, onPressed: onPressed, icon: Icon(icon, size: 16)),
     );
   }
 }

@@ -333,7 +333,7 @@ void main() {
     expect(tester.getSize(taskSearch).width, 240);
     expect(
       tester.getRect(taskActions).right,
-      closeTo(tester.getRect(find.byType(TasksTopBar)).right - AppDesignTokens.space32, 0.01),
+      closeTo(tester.getRect(find.byType(TasksTopBar)).right - 14, 0.01),
     );
     expect(
       tester.widget<Container>(find.byKey(const ValueKey('primary-rail-active-indicator'))).color,
@@ -395,7 +395,7 @@ void main() {
     expect(find.byKey(const ValueKey('speed-monitor-gauge')), findsOneWidget);
     expect(
       tester.getRect(taskActions).right,
-      closeTo(tester.getRect(find.byType(TasksTopBar)).right - AppDesignTokens.space32, 0.01),
+      closeTo(tester.getRect(find.byType(TasksTopBar)).right - 14, 0.01),
     );
     expect(tester.takeException(), isNull);
 
@@ -3196,7 +3196,7 @@ void main() {
     expect(chineseText, findsOneWidget);
     expect(tester.renderObject<RenderParagraph>(chineseText).didExceedMaxLines, isFalse);
     final chineseWidth = tester.getSize(find.byKey(const ValueKey('tasks-create-button-container'))).width;
-    expect(chineseWidth, greaterThanOrEqualTo(120));
+    expect(chineseWidth, greaterThanOrEqualTo(96));
 
     await tester.pumpWidget(appFor(const Locale('hu')));
     await tester.pumpAndSettle();
@@ -3884,7 +3884,7 @@ void main() {
     final statusRect = tester.getRect(find.text('Completed'));
     expect(sizeRect.left, lessThan(speedRect.left));
     expect(speedRect.right, lessThan(statusRect.left));
-    expect(find.byType(TaskProgressBar), findsNothing);
+    expect(find.byType(TaskProgressBar), findsOneWidget);
     expect(find.text('Downloaded'), findsNothing);
   });
 
@@ -4645,6 +4645,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.text('fresh.zip'));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.open_in_full));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Files'));
