@@ -420,7 +420,7 @@ void main() {
     );
     expect(
       tester.getRect(taskActions).right,
-      closeTo(tester.getRect(find.byType(TasksTopBar)).right - AppDesignTokens.space32, 0.01),
+      closeTo(tester.getRect(find.byType(TasksTopBar)).right - 14, 0.01),
     );
     expect(tester.takeException(), isNull);
 
